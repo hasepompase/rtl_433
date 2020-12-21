@@ -1,17 +1,20 @@
-/* GE Color Effects Remote
- *
- * Previous work decoding this device:
- *    https://lukecyca.com/2013/g35-rf-remote.html
- *    http://www.deepdarc.com/2010/11/27/hacking-christmas-lights/
- *
- * Copyright (C) 2017 Luke Cyca <me@lukecyca.com>, Christian W. Zuckschwerdt <zany@triq.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    GE Color Effects Remote.
 
+    Copyright (C) 2017 Luke Cyca <me@lukecyca.com>, Christian W. Zuckschwerdt <zany@triq.net>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+GE Color Effects Remote.
+
+Previous work decoding this device:
+ https://lukecyca.com/2013/g35-rf-remote.html
+ http://www.deepdarc.com/2010/11/27/hacking-christmas-lights/
+*/
 #include "decoder.h"
 
 // Frame preamble:
@@ -30,7 +33,7 @@ static inline int bit(const uint8_t *bytes, unsigned bit)
  * 10 = 0
  *  1100 = 1
  */
-unsigned ge_decode(r_device *decoder, bitbuffer_t *inbuf, unsigned row, unsigned start, bitbuffer_t *outbuf)
+unsigned ge_decode(bitbuffer_t *inbuf, unsigned row, unsigned start, bitbuffer_t *outbuf)
 {
     uint8_t *bits = inbuf->bb[row];
     unsigned int len = inbuf->bits_per_row[row];
@@ -68,7 +71,7 @@ static int ge_coloreffects_decode(r_device *decoder, bitbuffer_t *bitbuffer, uns
     uint8_t device_id;
     uint8_t command;
 
-    ge_decode(decoder, bitbuffer, row, start_pos, &packet_bits);
+    ge_decode(bitbuffer, row, start_pos, &packet_bits);
     //bitbuffer_print(&packet_bits);
 
     /* From http://www.deepdarc.com/2010/11/27/hacking-christmas-lights/
@@ -82,15 +85,15 @@ static int ge_coloreffects_decode(r_device *decoder, bitbuffer_t *bitbuffer, uns
 
     // Frame should be 17 decoded bits (not including preamble)
     if (packet_bits.bits_per_row[0] != 17)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     // First two bits must be 0
     if (*packet_bits.bb[0] & 0xc0)
-        return 0;
+        return DECODE_FAIL_SANITY;
 
     // Last bit must be 0
     if (bit(packet_bits.bb[0], 16) != 0)
-        return 0;
+        return DECODE_FAIL_SANITY;
 
     // Extract device ID
     // We want bits [2..8]. Since the first two bits are zero, we'll just take the entire first byte
@@ -121,26 +124,34 @@ static int ge_coloreffects_decode(r_device *decoder, bitbuffer_t *bitbuffer, uns
 
 }
 
-static int ge_coloreffects_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+/**
+GE Color Effects Remote.
+@sa ge_coloreffects_decode()
+*/
+static int ge_coloreffects_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     unsigned bitpos = 0;
-    int events = 0;
+    int ret         = 0;
+    int events      = 0;
 
     // Find a preamble with enough bits after it that it could be a complete packet
     // (if the device id and command were all zeros)
     while ((bitpos = bitbuffer_search(bitbuffer, 0, bitpos, (uint8_t *)&preamble_pattern, 24)) + 57 <=
             bitbuffer->bits_per_row[0]) {
-        events += ge_coloreffects_decode(decoder, bitbuffer, 0, bitpos + 24);
+        ret = ge_coloreffects_decode(decoder, bitbuffer, 0, bitpos + 24);
+        if (ret > 0)
+            events += ret;
         bitpos++;
     }
 
-    return events;
+    return events > 0 ? events : ret;
 }
 
 static char *output_fields[] = {
     "model",
     "id",
     "command",
-    NULL
+    NULL,
 };
 
 r_device ge_coloreffects = {

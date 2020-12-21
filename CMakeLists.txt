@@ -49,9 +49,6 @@ if(("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES 
     ADD_DEFINITIONS(-Wall)
     ADD_DEFINITIONS(-Wextra)
     ADD_DEFINITIONS(-Wsign-compare)
-    ADD_DEFINITIONS(-Wno-unused)
-    ADD_DEFINITIONS(-Wno-unused-parameter)
-    ADD_DEFINITIONS(-Wno-missing-field-initializers)
     ADD_DEFINITIONS(-std=c99)
     ADD_DEFINITIONS(-pedantic)
     # for strdup, setenv, use either
@@ -182,6 +179,11 @@ if(BUILD_DOCUMENTATION)
 
     set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    if(DOXYGEN_DOT_FOUND)
+        set(HAVE_DOT "YES")
+    else()
+        set(HAVE_DOT "NO")
+    endif()
 
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
     message(STATUS "Doxygen build started")

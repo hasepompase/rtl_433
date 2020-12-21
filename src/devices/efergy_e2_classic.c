@@ -29,13 +29,14 @@ Power calculations come from Nathaniel Elijah's program EfergyRPI_001.
 
 #include "decoder.h"
 
-static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     unsigned num_bits = bitbuffer->bits_per_row[0];
     uint8_t *bytes = bitbuffer->bb[0];
     data_t *data;
 
     if (num_bits < 64 || num_bits > 80) {
-        return 0;
+        return DECODE_ABORT_LENGTH;
     }
 
     // The bit buffer isn't always aligned to the transmitted data, so
@@ -45,7 +46,7 @@ static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     while ((bytes[0] & 0xf0) != 0xf0 && (bytes[0] & 0xf0) != 0x00) {
         num_bits -= 1;
         if (num_bits < 64) {
-            return 0;
+            return DECODE_FAIL_SANITY;
         }
 
         for (unsigned i = 0; i < (num_bits + 7) / 8; ++i) {
@@ -53,6 +54,7 @@ static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer)
             bytes[i] |= (bytes[i + 1] & 0x80) >> 7;
         }
     }
+
 
     // Sometimes pulses and gaps are mixed up. If this happens, invert
     // all bytes to get correct interpretation.
@@ -62,12 +64,22 @@ static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         }
     }
 
+    int zero_count = 0;
+    for (int i=0; i<8; i++) {
+        if (bytes[i] == 0)
+            zero_count++;
+    }
+    if (zero_count++ > 5)
+        return DECODE_FAIL_SANITY;  // too many Null bytes
+
+
     unsigned checksum = add_bytes(bytes, 7);
+
     if (checksum == 0) {
-        return 0; // reduce false positives
+        return DECODE_FAIL_SANITY; // reduce false positives
     }
     if ((checksum & 0xff) != bytes[7]) {
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
     uint16_t address = bytes[2] << 8 | bytes[1];
@@ -76,7 +88,7 @@ static int efergy_e2_classic_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     uint8_t battery  = (bytes[3] & 0x40) >> 6;
     uint8_t fact     = -(int8_t)bytes[6] + 15;
     if (fact < 9 || fact > 20) // full range unknown so far
-        return 0; // invalid exponent
+        return DECODE_FAIL_SANITY; // invalid exponent
     float current_adc = (float)(bytes[4] << 8 | bytes[5]) / (1 << fact);
 
     /* clang-format off */
@@ -102,6 +114,7 @@ static char *output_fields[] = {
         "current",
         "interval",
         "learn",
+        "mic",
         NULL,
 };
 

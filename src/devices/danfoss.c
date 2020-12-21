@@ -1,39 +1,46 @@
-/* Danfoss CFR Thermostat sensor protocol
- *
- * Manual: http://na.heating.danfoss.com/PCMPDF/Vi.88.R1.22%20CFR%20Thrm.pdf
- *
- * No protocol information found, so protocol is reverse engineered.
- * Sensor uses FSK modulation and Pulse Code Modulated (direct bit sequence) data.
- *
- * Example received raw data package:
- *   bitbuffer:: Number of rows: 1
- *   [00] {255} 2a aa aa aa aa aa aa aa aa aa aa aa aa aa aa aa 36 5c a9 a6 93 6c 4d a6 a9 6a 6b 29 4f 19 72 b2
- *
- * The package starts with a long (~128 bit) synchronization preamble (0xaa).
- * Sensor data consists of 21 nibbles of 4 bit, which are encoded with a 4b/6b encoder, resulting
- * in an encoded sequence of 126 bits (~16 encoded bytes)
- * The package may end with a noise bit or two.
- *
- * Example: <Received bits> | <6b/4b decoded nibbles>
- *  365C A9A6 936C 4DA6 A96A 6B29 4F19 72B2 | E02 111E C4 6616 7C14 B02C
- *
- * Nibble content:
- *  #0 -#2  -- Prefix - always 0xE02 (decoded)
- *  #3 -#6  -- Sensor ID
- *  #7      -- Message Count. Rolling counter incremented at each unique message.
- *  #8      -- Switch setting -> 2="day", 4="timer", 8="night"
- *  #9 -#10 -- Temperature decimal <value>/256
- *  #11-#12 -- Temperature integer (in Celsius)
- *  #13-#14 -- Set point decimal <value>/256
- *  #15-#16 -- Set point integer (in Celsius)
- *  #17-#20 -- CRC16, poly 0x1021, includes nibble #1-#16
- *
- * Copyright (C) 2016 Tommy Vestermark
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+/** @file
+    Danfoss CFR Thermostat sensor protocol.
+
+    Copyright (C) 2016 Tommy Vestermark
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+Danfoss CFR Thermostat sensor protocol.
+
+Manual: http://na.heating.danfoss.com/PCMPDF/Vi.88.R1.22%20CFR%20Thrm.pdf
+
+No protocol information found, so protocol is reverse engineered.
+Sensor uses FSK modulation and Pulse Code Modulated (direct bit sequence) data.
+
+Example received raw data package:
+  bitbuffer:: Number of rows: 1
+  [00] {255} 2a aa aa aa aa aa aa aa aa aa aa aa aa aa aa aa 36 5c a9 a6 93 6c 4d a6 a9 6a 6b 29 4f 19 72 b2
+
+The package starts with a long (~128 bit) synchronization preamble (0xaa).
+Sensor data consists of 21 nibbles of 4 bit, which are encoded with a 4b/6b encoder, resulting
+in an encoded sequence of 126 bits (~16 encoded bytes)
+The package may end with a noise bit or two.
+
+Example: <Received bits> | <6b/4b decoded nibbles>
+ 365C A9A6 936C 4DA6 A96A 6B29 4F19 72B2 | E02 111E C4 6616 7C14 B02C
+
+Nibble content:
+    #0 -#2  -- Prefix - always 0xE02 (decoded)
+    #3 -#6  -- Sensor ID
+    #7      -- Message Count. Rolling counter incremented at each unique message.
+    #8      -- Switch setting -> 2="day", 4="timer", 8="night"
+    #9 -#10 -- Temperature decimal <value>/256
+    #11-#12 -- Temperature integer (in Celsius)
+    #13-#14 -- Set point decimal <value>/256
+    #15-#16 -- Set point integer (in Celsius)
+    #17-#20 -- CRC16, poly 0x1021, includes nibble #1-#16
+
  */
+
 #include "decoder.h"
 
 #define NUM_BYTES 10    // Output contains 21 nibbles, but skip first nibble 0xE, as it is not part of CRC and to get byte alignment
@@ -81,7 +88,7 @@ static int danfoss_cfr_callback(r_device *decoder, bitbuffer_t *bitbuffer)
                 fprintf(stderr, "Danfoss: short package. Header index: %u\n", bit_offset);
                 bitbuffer_print(bitbuffer);
             }
-            return 0;
+            return DECODE_ABORT_LENGTH;
         }
         bit_offset += 6;    // Skip first nibble 0xE to get byte alignment and remove from CRC calculation
 
@@ -94,7 +101,7 @@ static int danfoss_cfr_callback(r_device *decoder, bitbuffer_t *bitbuffer)
                     fprintf(stderr, "Danfoss: 6b/4b decoding error\n");
                     bitbuffer_print(bitbuffer);
                 }
-                return 0;
+                return DECODE_FAIL_SANITY;
             }
             bytes[n] = (nibble_h << 4) | nibble_l;
         }
@@ -114,7 +121,7 @@ static int danfoss_cfr_callback(r_device *decoder, bitbuffer_t *bitbuffer)
          || crc_calc != (((uint16_t)bytes[8] << 8) | bytes[9])
         ) {
             if (decoder->verbose) fprintf(stderr, "Danfoss: Prefix or CRC error.\n");
-            return 0;
+            return DECODE_FAIL_MIC;
         }
 
         // Decode data
@@ -144,7 +151,8 @@ static int danfoss_cfr_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 
         return 1;
     }
-    return 0;
+    // TODO: move up instead of putting at bottom
+    return DECODE_ABORT_LENGTH;
 }
 
 

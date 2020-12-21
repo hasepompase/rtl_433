@@ -13,49 +13,63 @@ rtl_433_SOURCES      = abuf.c \
                        data.c \
                        decoder_util.c \
                        fileformat.c \
+                       http_server.c \
+                       jsmn.c \
                        list.c \
                        mongoose.c \
                        optparse.c \
                        output_influx.c \
                        output_mqtt.c \
+                       pulse_analyzer.c \
                        pulse_demod.c \
                        pulse_detect.c \
                        pulse_detect_fsk.c \
                        r_api.c \
                        r_util.c \
+                       rfraw.c \
                        rtl_433.c \
                        samp_grab.c \
                        sdr.c \
                        term_ctl.c \
                        util.c \
+                       write_sigrok.c \
                        devices/acurite.c \
                        devices/akhan_100F14.c \
                        devices/alecto.c \
                        devices/ambient_weather.c \
                        devices/ambientweather_tx8300.c \
                        devices/ambientweather_wh31e.c \
+                       devices/archos_tbh.c \
+                       devices/auriol_afw2a1.c \
                        devices/auriol_hg02832.c \
                        devices/blyss.c \
                        devices/brennenstuhl_rcs_2044.c \
                        devices/bresser_3ch.c \
                        devices/bresser_5in1.c \
+                       devices/bresser_6in1.c \
+                       devices/bresser_7in1.c \
                        devices/bt_rain.c \
                        devices/calibeur.c \
                        devices/cardin.c \
                        devices/chuango.c \
                        devices/companion_wtr001.c \
+                       devices/cotech_36_7959.c \
                        devices/current_cost.c \
                        devices/danfoss.c \
                        devices/digitech_xc0324.c \
                        devices/directv.c \
                        devices/dish_remote_6_3.c \
                        devices/dsc.c \
+                       devices/ecodhome.c \
                        devices/ecowitt.c \
                        devices/efergy_e2_classic.c \
                        devices/efergy_optical.c \
+                       devices/efth800.c \
                        devices/elro_db286a.c \
                        devices/elv.c \
                        devices/emontx.c \
+                       devices/ert_idm.c \
+                       devices/ert_scm.c \
                        devices/esa.c \
                        devices/esic_emt7110.c \
                        devices/esperanza_ews.c \
@@ -85,13 +99,19 @@ rtl_433_SOURCES      = abuf.c \
                        devices/ikea_sparsnas.c \
                        devices/infactory.c \
                        devices/inovalley-kw9015b.c \
+                       devices/insteon.c \
                        devices/interlogix.c \
                        devices/intertechno.c \
                        devices/kedsum.c \
                        devices/kerui.c \
+                       devices/klimalogg.c \
                        devices/lacrosse.c \
-                       devices/lacrosse_TX141TH_Bv2.c \
+                       devices/lacrosse_breezepro.c \
+                       devices/lacrosse_r1.c \
+                       devices/lacrosse_th3.c \
+                       devices/lacrosse_tx141x.c \
                        devices/lacrosse_tx35.c \
+                       devices/lacrosse_wr1.c \
                        devices/lacrosse_ws7000.c \
                        devices/lacrossews.c \
                        devices/lightwave_rf.c \
@@ -99,10 +119,12 @@ rtl_433_SOURCES      = abuf.c \
                        devices/maverick_et73.c \
                        devices/maverick_et73x.c \
                        devices/mebus.c \
+                       devices/missil_ml0757.c \
                        devices/new_template.c \
                        devices/newkaku.c \
                        devices/nexa.c \
                        devices/nexus.c \
+                       devices/nice_flor_s.c \
                        devices/norgo.c \
                        devices/oil_standard.c \
                        devices/oil_watchman.c \
@@ -121,17 +143,25 @@ rtl_433_SOURCES      = abuf.c \
                        devices/rubicson_48659.c \
                        devices/s3318p.c \
                        devices/schraeder.c \
+                       devices/scmplus.c \
+                       devices/secplus_v2.c \
+                       devices/sharp_spc775.c \
                        devices/silvercrest.c \
                        devices/simplisafe.c \
                        devices/smoke_gs558.c \
                        devices/solight_te44.c \
+                       devices/somfy.c \
                        devices/springfield.c \
                        devices/steelmate.c \
                        devices/tfa_30_3196.c \
+                       devices/tfa_30_3221.c \
+                       devices/tfa_drop_30.3233.c \
                        devices/tfa_pool_thermometer.c \
                        devices/tfa_twin_plus_30.3049.c \
                        devices/thermopro_tp11.c \
                        devices/thermopro_tp12.c \
+                       devices/thermopro_tx2.c \
+                       devices/tpms_abarth124.c \
                        devices/tpms_citroen.c \
                        devices/tpms_elantra2012.c \
                        devices/tpms_ford.c \
@@ -142,8 +172,10 @@ rtl_433_SOURCES      = abuf.c \
                        devices/ts_ft002.c \
                        devices/ttx201.c \
                        devices/vaillant_vrt340f.c \
+                       devices/visonic_powercode.c \
                        devices/waveman.c \
                        devices/wg_pb12v1.c \
+                       devices/ws2032.c \
                        devices/wssensor.c \
                        devices/wt0124.c \
                        devices/wt450.c \

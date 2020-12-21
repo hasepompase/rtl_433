@@ -1,4 +1,4 @@
-/* @file
+/** @file
     TPMS for Hyundai Elantra, Honda Civic.
 
     Copyright (C) 2019 Kumar Vivek <kv2000in@gmail.com>
@@ -42,7 +42,7 @@ Preamble is 111 0001 0101 0101 (0x7155).
   - C3 =1100 0011 = Battery Low, Triggered
   - C5 =1100 0101 = Battery OK, Triggered, Storage Mode
   - E1 =1110 0001 = Mx Sensor Clone for Elantra 2012 US market ? Low Line
-  - C1		 = Mx Sensor Clone for Genesis Sedan 2012 US market ? High Line
+  - C1            = Mx Sensor Clone for Genesis Sedan 2012 US market ? High Line
 - C: CRC-8, poly 0x07, init 0x00
 
 */
@@ -52,7 +52,6 @@ Preamble is 111 0001 0101 0101 (0x7155).
 static int tpms_elantra2012_decode(r_device *decoder, bitbuffer_t *bitbuffer, unsigned row, unsigned bitpos)
 {
     data_t *data;
-    unsigned start_pos;
     bitbuffer_t packet_bits = {0};
     uint8_t *b;
     uint32_t id;
@@ -63,9 +62,9 @@ static int tpms_elantra2012_decode(r_device *decoder, bitbuffer_t *bitbuffer, un
     int temperature_c;
     int triggered, battery_low, storage;
 
-    start_pos = bitbuffer_manchester_decode(bitbuffer, row, bitpos, &packet_bits, 64);
+    bitbuffer_manchester_decode(bitbuffer, row, bitpos, &packet_bits, 64);
     // require 64 data bits
-    if (start_pos - bitpos < 128) {
+    if (packet_bits.bits_per_row[0] < 64) {
         return DECODE_ABORT_LENGTH;
     }
     b = packet_bits.bb[0];
@@ -106,6 +105,7 @@ static int tpms_elantra2012_decode(r_device *decoder, bitbuffer_t *bitbuffer, un
     return 1;
 }
 
+/** @sa tpms_elantra2012_decode() */
 static int tpms_elantra2012_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     // Note that there is a (de)sync preamble of long/short, short/short, triple/triple,
@@ -115,25 +115,23 @@ static int tpms_elantra2012_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 
     int row;
     unsigned bitpos;
+    int ret    = 0;
     int events = 0;
 
     for (row = 0; row < bitbuffer->num_rows; ++row) {
         bitpos = 0;
         // Find a preamble with enough bits after it that it could be a complete packet
         while ((bitpos = bitbuffer_search(bitbuffer, row, bitpos,
-                        (const uint8_t *)&preamble_pattern, 16)) + 128 <=
+                        preamble_pattern, 16)) + 128 <=
                 bitbuffer->bits_per_row[row]) {
-            int event = tpms_elantra2012_decode(decoder, bitbuffer, row, bitpos + 16);
-            if (event > 0) {
-                // not very clean, we ideally want the event to bubble up for accounting.
-                // however, by adding them all together the accounting is wrong too.
-                events += event;
-            }
+            ret = tpms_elantra2012_decode(decoder, bitbuffer, row, bitpos + 16);
+            if (ret > 0)
+                events += ret;
             bitpos += 15;
         }
     }
 
-    return events;
+    return events > 0 ? events : ret;
 }
 
 static char *output_fields[] = {
@@ -146,6 +144,7 @@ static char *output_fields[] = {
         "triggered",
         "storage",
         "flags",
+        "mic",
         NULL,
 };
 

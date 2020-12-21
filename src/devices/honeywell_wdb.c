@@ -42,35 +42,44 @@ Wireless Chimes
 
 #include "decoder.h"
 
-static int honeywell_wdb_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int honeywell_wdb_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     int row, secret_knock, relay, battery, parity;
     uint8_t *bytes;
     data_t *data;
     unsigned int device, tmp;
     char *class, *alert;
 
-    // The device transmits many rows, check for 12 matching rows.
+    // The device transmits many rows, check for 4 matching rows.
     row = bitbuffer_find_repeated_row(bitbuffer, 4, 48);
     if (row < 0) {
-        return 0;
+        return DECODE_ABORT_EARLY;
     }
     bytes = bitbuffer->bb[row];
 
-
     if (bitbuffer->bits_per_row[row] != 48)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     bitbuffer_invert(bitbuffer);
 
     /* Parity check (must be EVEN) */
     parity = parity_bytes(bytes, 6);
 
+    // No need to decode/extract values for simple test
+    if ((!bytes[0] && !bytes[2] && !bytes[4] && !bytes[5])
+       || (bytes[0] == 0xff && bytes[2] == 0xff && bytes[4] == 0xff && bytes[5] == 0xff)) {
+        if (decoder->verbose > 1) {
+            fprintf(stderr, "%s: DECODE_FAIL_SANITY data all 0x00 or 0xFF\n", __func__);
+        }
+        return DECODE_FAIL_SANITY;
+    }
+
     if (parity) { // ODD parity detected
         if (decoder->verbose > 1) {
             bitbuffer_print(bitbuffer);
             fprintf(stderr, "honeywell_wdb: Parity check on row %d failed (%d)\n", row, parity);
         }
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
     device = bytes[0] << 12 | bytes[1] << 4 | (bytes[2]&0xF);

@@ -31,7 +31,9 @@
 /// @param device Modulation parameters of
 /// - short_width: Nominal width of pulse [us]
 /// - long_width:  Nominal width of bit period [us]
+/// - gap_limit:   Maximum gap size before new row of bits (optional) [us]
 /// - reset_limit: Maximum gap size before End Of Message [us].
+/// - tolerance:   Maximum deviation from nominal widths (optional, default 25%) [us]
 /// @return number of events processed
 int pulse_demod_pcm(const pulse_data_t *pulses, r_device *device);
 
@@ -140,6 +142,8 @@ int pulse_demod_piwm_raw(const pulse_data_t *pulses, r_device *device);
 /// - tolerance:   Maximum deviation from nominal widths [us]
 /// @return number of events processed
 int pulse_demod_piwm_dc(const pulse_data_t *pulses, r_device *device);
+
+int pulse_demod_nrzs(const pulse_data_t *pulses, r_device *device);
 
 int pulse_demod_osv1(const pulse_data_t *pulses, r_device *device);
 

@@ -1,12 +1,13 @@
-/** ELV Energy Counter ESA 1000/2000.
- *
- * Copyright (C) 2016 TylerDurden23, initial cleanup by Benjamin Larsson
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    ELV Energy Counter ESA 1000/2000.
+
+    Copyright (C) 2016 TylerDurden23, initial cleanup by Benjamin Larsson
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
 
 #include "decoder.h"
 
@@ -44,13 +45,13 @@ static int esa_cost_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     float energy_total_val, energy_impulse_val;
 
     if (bitbuffer->bits_per_row[0] != 160 || bitbuffer->num_rows != 1)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     // remove first two bytes?
     bitbuffer_extract_bytes(bitbuffer, 0, 16, b, 160 - 16);
 
     if (decrypt_esa(b))
-        return 0; // checksum fail
+        return DECODE_FAIL_MIC; // checksum fail
 
     is_retry           = (b[0] >> 7);
     sequence_id        = (b[0] & 0x7f);
@@ -79,26 +80,26 @@ static int esa_cost_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 }
 
 static char *output_fields[] = {
-    "model",
-    "id",
-    "impulses",
-    "impulses_total",
-    "impulse_constant",
-    "total_kWh",
-    "impulse_kWh",
-    "sequence_id",
-    "is_retry",
-    "mic",
-    NULL
+        "model",
+        "id",
+        "impulses",
+        "impulses_total",
+        "impulse_constant",
+        "total_kWh",
+        "impulse_kWh",
+        "sequence_id",
+        "is_retry",
+        "mic",
+        NULL,
 };
 
 r_device esa_energy = {
-    .name           = "ESA1000 / ESA2000 Energy Monitor",
-    .modulation     = OOK_PULSE_MANCHESTER_ZEROBIT,
-    .short_width    = 260,
-    .long_width     = 0,
-    .reset_limit    = 3000,
-    .decode_fn      = &esa_cost_callback,
-    .disabled       = 1,
-    .fields         = output_fields,
+        .name        = "ESA1000 / ESA2000 Energy Monitor",
+        .modulation  = OOK_PULSE_MANCHESTER_ZEROBIT,
+        .short_width = 260,
+        .long_width  = 0,
+        .reset_limit = 3000,
+        .decode_fn   = &esa_cost_callback,
+        .disabled    = 1,
+        .fields      = output_fields,
 };

@@ -1,16 +1,28 @@
-/* Example of a generic remote using PT2260/PT2262 SC2260/SC2262 EV1527 protocol
- *
- * fixed bit width of 1445 us
- * short pulse is 357 us (1/4th)
- * long pulse is 1064 (3/4th)
- * a packet is 15 pulses, the last pulse (short) is sync pulse
- * packet gap is 11.5 ms
- *
- * note that this decoder uses:
- * short-short (1 1 by the demod) as 0 (per protocol),
- * short-long (1 0 by the demod) as 1 (F per protocol),
- * long-long (0 0 by the demod) not used (1 per protocol).
- */
+/** @file
+    Example of a generic remote using PT2260/PT2262 SC2260/SC2262 EV1527 protocol.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+*/
+
+/**
+Example of a generic remote using PT2260/PT2262 SC2260/SC2262 EV1527 protocol.
+
+fixed bit width of 1445 us
+short pulse is 357 us (1/4th)
+long pulse is 1064 (3/4th)
+a packet is 15 pulses, the last pulse (short) is sync pulse
+packet gap is 11.5 ms
+
+note that this decoder uses:
+short-short (1 1 by the demod) as 0 (per protocol),
+short-long (1 0 by the demod) as 1 (F per protocol),
+long-long (0 0 by the demod) not used (1 per protocol).
+*/
+
 #include "decoder.h"
 
 static int waveman_callback(r_device *decoder, bitbuffer_t *bitbuffer)
@@ -25,7 +37,7 @@ static int waveman_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 
     /* Reject codes of wrong length */
     if (25 != bitbuffer->bits_per_row[0])
-      return 0;
+      return DECODE_ABORT_LENGTH;
 
     /*
      * Catch the case triggering false positive for other transmitters.
@@ -36,11 +48,11 @@ static int waveman_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     if (0xFF == b[0] &&
             0xFF == b[1] &&
             0xFF == b[2])
-        return 0;
+        return DECODE_ABORT_EARLY;
 
     /* Test if the bit stream has every even bit set to one */
     if (((b[0] & 0xaa) != 0xaa) || ((b[1] & 0xaa) != 0xaa) || ((b[2] & 0xaa) != 0xaa))
-        return 0;
+        return DECODE_FAIL_SANITY;
 
     /* Extract data from the bit stream */
     for (i = 0; i < 3; ++i) {

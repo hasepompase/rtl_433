@@ -90,7 +90,7 @@ static int gt_wt_03_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     data_t *data;
     int row = 0;
-    uint8_t *b = bitbuffer->bb[row];
+    uint8_t *b;
 
     // nominal 1 row or 23 rows, require more than half to match
     if (bitbuffer->num_rows > 1)
@@ -139,7 +139,7 @@ static int gt_wt_03_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             "temperature_C",    "Temperature",  DATA_FORMAT, "%.01f C", DATA_DOUBLE, temp_c,
             "humidity",         "Humidity",     DATA_FORMAT, "%.0f %%", DATA_DOUBLE, (double)humidity,
             "button",           "Button",       DATA_INT,    button_pressed,
-            "mic",              "Integrity",    DATA_STRING, "CHECKSUM",
+            "mic",              "Integrity",    DATA_STRING, "CRC",
             NULL);
     /* clang-format on */
 
@@ -151,7 +151,7 @@ static char *output_fields[] = {
         "model",
         "id",
         "channel",
-        "battery",
+        "battery_ok",
         "temperature_C",
         "humidity",
         "button",

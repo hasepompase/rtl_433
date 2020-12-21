@@ -1,15 +1,27 @@
-/* Akhan remote keyless entry system
- *
- *    This RKE system uses a HS1527 OTP encoder (http://sc-tech.cn/en/hs1527.pdf)
- *    Each message consists of a preamble, 20 bit id and 4 data bits.
- *
- *    (code based on chuango.c and generic_remote.c)
- *
- * Note: simple 24 bit fixed ID protocol (x1527 style) and should be handled by the flex decoder.
- */
+/** @file
+    Akhan remote keyless entry system.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+
+/**
+Akhan remote keyless entry system.
+
+This RKE system uses a HS1527 OTP encoder (http://sc-tech.cn/en/hs1527.pdf)
+Each message consists of a preamble, 20 bit id and 4 data bits.
+
+(code based on chuango.c and generic_remote.c)
+
+Note: simple 24 bit fixed ID protocol (x1527 style) and should be handled by the flex decoder.
+*/
+
 #include "decoder.h"
 
-static int akhan_rke_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int akhan_rke_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     data_t *data;
     uint8_t *b;
     int id;
@@ -17,7 +29,7 @@ static int akhan_rke_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     char *cmd_str;
 
     if (bitbuffer->bits_per_row[0] != 25)
-        return 0;
+        return DECODE_ABORT_LENGTH;
     b = bitbuffer->bb[0];
 
     //invert bits, short pulse is 0, long pulse is 1
@@ -36,7 +48,7 @@ static int akhan_rke_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     }
 
     if (!cmd_str)
-        return 0;
+        return DECODE_FAIL_SANITY;
 
     data = data_make(
             "model",    "",             DATA_STRING, _X("Akhan-100F14","Akhan 100F14 remote keyless entry"),

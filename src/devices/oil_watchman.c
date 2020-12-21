@@ -1,24 +1,29 @@
-/* Oil tank monitor using Si4320 framed FSK protocol
- *
- * Tested devices:
- * Sensor Systems Watchman Sonic
- *
- * Copyright (C) 2015 David Woodhouse
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    Oil tank monitor using Si4320 framed FSK protocol.
+
+    Copyright (C) 2015 David Woodhouse
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+Oil tank monitor using Si4320 framed FSK protocol.
+
+Tested devices:
+- Sensor Systems Watchman Sonic
+*/
 #include "decoder.h"
 
-// Start of frame preamble is 111000xx
-static const unsigned char preamble_pattern = 0xe0;
+static int oil_watchman_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
+    // Start of frame preamble is 111000xx
+    uint8_t const preamble_pattern = 0xe0;
 
-// End of frame is 00xxxxxx or 11xxxxxx depending on final data bit
-static const unsigned char postamble_pattern[2] = { 0x00, 0xc0 };
+    // End of frame is 00xxxxxx or 11xxxxxx depending on final data bit
+    uint8_t const postamble_pattern[2] = { 0x00, 0xc0 };
 
-static int oil_watchman_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     uint8_t *b;
     uint32_t unit_id;
     uint16_t depth = 0;
@@ -40,16 +45,16 @@ static int oil_watchman_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
 
         bitpos = bitbuffer_manchester_decode(bitbuffer, 0, bitpos, &databits, 64);
         if (databits.bits_per_row[0] != 64)
-            continue;
+            continue; // DECODE_ABORT_LENGTH
 
         b = databits.bb[0];
 
         // Check for postamble, depending on last data bit
         if (bitbuffer_search(bitbuffer, 0, bitpos, &postamble_pattern[b[7] & 1], 2) != bitpos)
-            continue;
+            continue; // DECODE_ABORT_EARLY
 
         if (b[7] != crc8le(b, 7, 0x31, 0))
-            continue;
+            continue; // DECODE_FAIL_MIC
 
         // The unit ID changes when you rebind by holding a magnet to the
         // sensor for long enough; it seems to be time-based.

@@ -1,33 +1,46 @@
-/* OSv1 protocol
- *
- * MC with nominal bit width of 2930 us.
- * Pulses are somewhat longer than nominal half-bit width, 1748 us / 3216 us,
- * Gaps are somewhat shorter than nominal half-bit width, 1176 us / 2640 us.
- * After 12 preamble bits there is 4200 us gap, 5780 us pulse, 5200 us gap.
- *
- * Care must be taken with the gap after the sync pulse since it
- * is outside of the normal clocking.  Because of this a data stream
- * beginning with a 0 will have data in this gap.
- */
+/** @file
+    OSv1 protocol.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+OSv1 protocol.
+
+MC with nominal bit width of 2930 us.
+Pulses are somewhat longer than nominal half-bit width, 1748 us / 3216 us,
+Gaps are somewhat shorter than nominal half-bit width, 1176 us / 2640 us.
+After 12 preamble bits there is 4200 us gap, 5780 us pulse, 5200 us gap.
+
+Care must be taken with the gap after the sync pulse since it
+is outside of the normal clocking.  Because of this a data stream
+beginning with a 0 will have data in this gap.
+
+*/
 
 #include "decoder.h"
 
 #define OSV1_BITS   32
 
-static int oregon_scientific_v1_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int oregon_scientific_v1_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     int ret = 0;
     int row;
     int cs;
     int i;
     int nibble[OSV1_BITS/4];
-    int sid, channel, uk1;
+    int sid, channel;
+    // int uk1;
     float tempC;
-    int battery, uk2, sign, uk3, checksum;
+    int battery, sign, checksum;
+    // int uk2, uk3;
     data_t *data;
 
     for (row = 0; row < bitbuffer->num_rows; row++) {
         if (bitbuffer->bits_per_row[row] != OSV1_BITS)
-            continue;
+            continue; // DECODE_ABORT_LENGTH
 
         cs = 0;
         for (i = 0; i < OSV1_BITS / 8; i++) {
@@ -38,19 +51,30 @@ static int oregon_scientific_v1_callback(r_device *decoder, bitbuffer_t *bitbuff
                 cs += nibble[i * 2] + 16 * nibble[i * 2 + 1];
         }
 
+
+        // No need to decode/extract values for simple test
+        if ( bitbuffer->bb[row][0] == 0xFF && bitbuffer->bb[row][1] == 0xFF
+            && bitbuffer->bb[row][2] == 0xFF && bitbuffer->bb[row][3] == 0xFF )  {
+            if (decoder->verbose > 1) {
+                fprintf(stderr, "%s: DECODE_FAIL_SANITY data all 0xff\n", __func__);
+            }
+            continue; //  DECODE_FAIL_SANITY
+        }
+
         cs = (cs & 0xFF) + (cs >> 8);
         checksum = nibble[6] + (nibble[7] << 4);
-        if (checksum != cs)
-            continue;
+        /* reject 0x00 checksums to reduce false positives */
+        if (!checksum || (checksum != cs))
+            continue; // DECODE_FAIL_MIC
 
         sid      = nibble[0];
         channel  = ((nibble[1] >> 2) & 0x03) + 1;
-        uk1      = (nibble[1] >> 0) & 0x03; /* unknown.  Seen change every 60 minutes */
+        //uk1      = (nibble[1] >> 0) & 0x03; /* unknown.  Seen change every 60 minutes */
         tempC    =  nibble[2] * 0.1 + nibble[3] + nibble[4] * 10.;
         battery  = (nibble[5] >> 3) & 0x01;
-        uk2      = (nibble[5] >> 2) & 0x01; /* unknown.  Always zero? */
+        //uk2      = (nibble[5] >> 2) & 0x01; /* unknown.  Always zero? */
         sign     = (nibble[5] >> 1) & 0x01;
-        uk3      = (nibble[5] >> 0) & 0x01; /* unknown.  Always zero? */
+        //uk3      = (nibble[5] >> 0) & 0x01; /* unknown.  Always zero? */
 
         if (sign)
             tempC = -tempC;
@@ -62,7 +86,8 @@ static int oregon_scientific_v1_callback(r_device *decoder, bitbuffer_t *bitbuff
                 "channel",      "Channel",      DATA_INT,       channel,
                 "battery",      "Battery",      DATA_STRING,    battery ? "LOW" : "OK",
                 "temperature_C","Temperature",  DATA_FORMAT,    "%.01f C",              DATA_DOUBLE,    tempC,
-                NULL);
+                "mic",          "Integrity",    DATA_STRING,    "CHECKSUM",
+            NULL);
         decoder_output_data(decoder, data);
         ret++;
     }
@@ -77,7 +102,8 @@ static char *output_fields[] = {
     "channel",
     "battery",
     "temperature_C",
-    NULL
+    "mic",
+    NULL,
 };
 
 r_device oregon_scientific_v1 = {
@@ -89,5 +115,5 @@ r_device oregon_scientific_v1 = {
     .reset_limit    = 14000,
     .decode_fn      = &oregon_scientific_v1_callback,
     .disabled       = 0,
-    .fields         = output_fields
+    .fields         = output_fields,
 };

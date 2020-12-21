@@ -86,7 +86,6 @@ $ rtl_433 -R 0 -X '-X n=DirecTV,m=FSK_PCM,s=600,l=600,g=30000,r=80000'
 
 #define ROW_BITLEN_MIN     44  // The shortest possible fragment that can possibly decode successfully
 #define ROW_BITLEN_MAX     99  // But even with a LONG SYNC and large MESSAGE value, won't be larger than this
-#define ROW_MINREPEATS     1   // We're expecting that all bitbuffers coming here only have one row at a time
 #define ROW_SYNC_SHORT_LEN 5   // A SYNC longer than this will be considered a LONG SYNC
 #define DTV_BITLEN_MAX     40  // Valid decoded data for this device will be exactly 40 bits in length
 
@@ -301,7 +300,7 @@ static int directv_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         if (decoder->verbose >= 2) {
             fprintf(stderr, "directv: incorrect number of bits in bitbuffer: %d (expected between %d and %d).\n", bit_len, ROW_BITLEN_MIN, ROW_BITLEN_MAX);
         }
-        return 0;
+        return DECODE_FAIL_SANITY;
     }
 
     bitbuffer_extract_bytes(bitbuffer, r, 0, bitrow, bit_len);
@@ -317,7 +316,7 @@ static int directv_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         if (decoder->verbose >= 2) {
             fprintf(stderr, "directv: Incorrect number of decoded bits: %u (should be %d).\n", dtv_bit_len, DTV_BITLEN_MAX);
         }
-        return 0;
+        return DECODE_ABORT_LENGTH;
     }
 
     // First byte should be 0x10 (model number?)
@@ -325,7 +324,7 @@ static int directv_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         if (decoder->verbose >= 2) {
             fprintf(stderr, "directv: Incorrect Model ID number: 0x%02X (should be 0x10).\n", dtv_buf[0]);
         }
-        return 0;
+        return DECODE_FAIL_SANITY;
     }
 
     // Validate Checksum
@@ -339,7 +338,7 @@ static int directv_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         if (decoder->verbose >= 2) {
             fprintf(stderr, "directv: Checksum failed: 0x%01X should match 0x%01X\n", checksum_1, checksum_2);
         }
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
     // Get Device ID
@@ -349,7 +348,7 @@ static int directv_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         if (decoder->verbose >= 2) {
             fprintf(stderr, "directv: Bad Device ID: %u (should be between 000000 and 999999).\n", dtv_device_id);
         }
-        return 0;
+        return DECODE_FAIL_SANITY;
     }
 
     // Get Button ID, assuming all byte values are valid.

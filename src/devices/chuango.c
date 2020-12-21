@@ -1,27 +1,38 @@
-/* Chuango Security Technology Corporation
- * likely based on HS1527 or compatible
- *
- * Tested devices:
- * G5 GSM/SMS/RFID Touch Alarm System (Alarm, Disarm, ...)
- * DWC-100 Door sensor (Default: Normal Zone)
- * DWC-102 Door sensor (Default: Normal Zone)
- * KP-700 Wireless Keypad (Arm, Disarm, Home Mode, Alarm!)
- * PIR-900 PIR sensor (Default: Home Mode Zone)
- * RC-80 Remote Control (Arm, Disarm, Home Mode, Alarm!)
- * SMK-500 Smoke sensor (Default: 24H Zone)
- * WI-200 Water sensor (Default: 24H Zone)
- *
- * Note: simple 24 bit fixed ID protocol (x1527 style) and should be handled by the flex decoder.
- *
- * Copyright (C) 2015 Tommy Vestermark
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    Chuango Security Technology.
+
+    Copyright (C) 2015 Tommy Vestermark
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+*/
+/**
+Chuango Security Technology.
+
+likely based on HS1527 or compatible
+
+Tested devices:
+G5 GSM/SMS/RFID Touch Alarm System (Alarm, Disarm, ...)
+DWC-100 Door sensor (Default: Normal Zone)
+DWC-102 Door sensor (Default: Normal Zone)
+KP-700 Wireless Keypad (Arm, Disarm, Home Mode, Alarm!)
+PIR-900 PIR sensor (Default: Home Mode Zone)
+RC-80 Remote Control (Arm, Disarm, Home Mode, Alarm!)
+SMK-500 Smoke sensor (Default: 24H Zone)
+WI-200 Water sensor (Default: 24H Zone)
+
+Note: simple 24 bit fixed ID protocol (x1527 style) and should be handled by the flex decoder.
+
+*/
+
+
 #include "decoder.h"
 
-static int chuango_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int chuango_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     data_t *data;
     uint8_t *b;
     int id;
@@ -29,7 +40,7 @@ static int chuango_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     char *cmd_str;
 
     if (bitbuffer->bits_per_row[0] != 25)
-        return 0;
+        return DECODE_ABORT_LENGTH;
     b = bitbuffer->bb[0];
 
     b[0] = ~b[0];
@@ -39,7 +50,7 @@ static int chuango_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     // Validate package
     if (!(b[3] & 0x80)    // Last bit (MSB here) is always 1
         || !b[0] || !b[1] || !(b[2] & 0xF0))    // Reduce false positives. ID 0x00000 not supported
-        return 0;
+        return DECODE_ABORT_EARLY;
 
     id = (b[0] << 12) | (b[1] << 4) | (b[2] >> 4); // ID is 20 bits (Ad: "1 Million combinations" :-)
     cmd = b[2] & 0x0F;
@@ -80,7 +91,7 @@ static char *output_fields[] = {
     "id",
     "cmd",
     "cmd_id",
-    NULL
+    NULL,
 };
 
 r_device chuango = {

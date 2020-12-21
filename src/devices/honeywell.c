@@ -16,6 +16,7 @@ Tested with the Honeywell 5811 Wireless Door/Window transmitters.
 
 Also: 2Gig DW10 door sensors,
 and Resolution Products RE208 (wire to air repeater).
+And DW11 with 96 bit packets.
 
 Maybe: 5890PI?
 
@@ -45,13 +46,15 @@ static int honeywell_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     data_t *data;
     int row;
     int pos;
-    uint8_t b[6] = {0};
+    int len;
+    uint8_t b[10] = {0};
     int channel;
     int device_id;
     int event;
     uint16_t crc_calculated;
     uint16_t crc;
-    int state;
+    int reed;
+    int contact;
     int heartbeat;
     int alarm;
     int tamper;
@@ -64,9 +67,10 @@ static int honeywell_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     bitbuffer_invert(bitbuffer);
 
     pos = bitbuffer_search(bitbuffer, row, 0, preamble_pattern, 12) + 12;
-    if (pos >= bitbuffer->bits_per_row[row])
+    len = bitbuffer->bits_per_row[row] - pos;
+    if (len < 48)
         return DECODE_ABORT_LENGTH;
-    bitbuffer_extract_bytes(bitbuffer, row, pos, b, 48);
+    bitbuffer_extract_bytes(bitbuffer, row, pos, b, 80);
 
     channel   = b[0] >> 4;
     device_id = ((b[0] & 0xf) << 16) | (b[1] << 8) | b[2];
@@ -75,7 +79,12 @@ static int honeywell_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     if (device_id == 0 && crc == 0)
         return DECODE_ABORT_EARLY; // Reduce collisions
 
-    if (channel == 0x2 || channel == 0xA) {
+    if (len > 50) { // DW11
+        if (decoder->verbose)
+            bitrow_printf(b, len, "%s: ", __func__);
+    }
+
+    if (channel == 0x2 || channel == 0x4 || channel == 0xA) {
         // 2GIG brand
         crc_calculated = crc16(b, 4, 0x8050, 0);
     } else { // channel == 0x8
@@ -85,11 +94,12 @@ static int honeywell_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         return DECODE_FAIL_MIC; // Not a valid packet
 
     event = b[3];
-    // decoded event bits: AATABHUU
+    // decoded event bits: CTRABHUU
     // NOTE: not sure if these apply to all device types
-    state       = (event & 0x80) >> 7;
-    alarm       = (event & 0xb0) >> 4;
+    contact     = (event & 0x80) >> 7;
     tamper      = (event & 0x40) >> 6;
+    reed        = (event & 0x20) >> 5;
+    alarm       = (event & 0x10) >> 4;
     battery_low = (event & 0x08) >> 3;
     heartbeat   = (event & 0x04) >> 2;
 
@@ -99,7 +109,9 @@ static int honeywell_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             "id",           "", DATA_FORMAT, "%05x", DATA_INT, device_id,
             "channel",      "", DATA_INT,    channel,
             "event",        "", DATA_FORMAT, "%02x", DATA_INT, event,
-            "state",        "", DATA_STRING, state ? "open" : "closed",
+            "state",        "", DATA_STRING, contact ? "open" : "closed", // Ignore the reed switch legacy.
+            "contact_open", "", DATA_INT,    contact,
+            "reed_open",    "", DATA_INT,    reed,
             "alarm",        "", DATA_INT,    alarm,
             "tamper",       "", DATA_INT,    tamper,
             "battery_ok",   "", DATA_INT,    !battery_low,
@@ -117,6 +129,8 @@ static char *output_fields[] = {
         "channel",
         "event",
         "state",
+        "contact_open",
+        "reed_open",
         "alarm",
         "tamper",
         "battery_ok",
@@ -125,7 +139,7 @@ static char *output_fields[] = {
 };
 
 r_device honeywell = {
-        .name        = "Honeywell Door/Window Sensor",
+        .name        = "Honeywell Door/Window Sensor, 2Gig DW10/DW11, RE208 repeater",
         .modulation  = OOK_PULSE_MANCHESTER_ZEROBIT,
         .short_width = 156,
         .long_width  = 0,

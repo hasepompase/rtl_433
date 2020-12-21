@@ -201,6 +201,7 @@ void pulse_FSK_detect_mm(int16_t fm_n, pulse_data_t *fsk_pulses, pulse_FSK_state
                     fsk_pulses->pulse[fsk_pulses->num_pulses] = s->fsk_pulse_length;
                     s->fsk_pulse_length = 0;
                 }
+                s->fm_f2_est += fm_n / FSK_EST_SLOW - s->fm_f2_est / FSK_EST_SLOW; // Slow estimator
                 break;
             case PD_FSK_STATE_FL:
                 if (fm_n > mid) {
@@ -210,10 +211,11 @@ void pulse_FSK_detect_mm(int16_t fm_n, pulse_data_t *fsk_pulses, pulse_FSK_state
                     s->fsk_pulse_length = 0;
                     // When pulse buffer is full go to error state
                     if (fsk_pulses->num_pulses >= PD_MAX_PULSES) {
-                        fprintf(stderr, "pulse_FSK_detect(): Maximum number of pulses reached!\n");
+//                        fprintf(stderr, "pulse_FSK_detect(): Maximum number of pulses reached!\n");
                         s->fsk_state = PD_FSK_STATE_ERROR;
                     }
                 }
+                s->fm_f1_est += fm_n / FSK_EST_SLOW - s->fm_f1_est / FSK_EST_SLOW; // Slow estimator
                 break;
             case PD_FSK_STATE_ERROR:        // Stay here until cleared
                 break;

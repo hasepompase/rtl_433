@@ -1,16 +1,20 @@
-/* LightwaveRF protocol
- *
- * Stub for decoding test data only
- *
- * Reference: https://wiki.somakeit.org.uk/wiki/LightwaveRF_RF_Protocol
- *
- * Copyright (C) 2015 Tommy Vestermark
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/** @file
+    LightwaveRF protocol.
+
+    Copyright (C) 2015 Tommy Vestermark
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+/**
+LightwaveRF protocol.
+
+Stub for decoding test data only
+
+Reference: https://wiki.somakeit.org.uk/wiki/LightwaveRF_RF_Protocol
+*/
 
 #include "decoder.h"
 
@@ -51,7 +55,7 @@ static int lightwave_rf_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     // Pulse 72 (delimiting "1" is not demodulated, as gap becomes End-Of-Message - thus expected length is 71
     if (bitbuffer->bits_per_row[0] != 71
             || bitbuffer->num_rows != 1) // There should be only one message (and we use the rest...)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     // Polarity is inverted
     bitbuffer_invert(bitbuffer);
@@ -71,13 +75,13 @@ static int lightwave_rf_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     // Check length is correct
     // Due to encoding there will be two "0"s per byte, thus message grows to 91 bits
     if (bitbuffer->bits_per_row[1] != 91)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     // Check initial delimiter bit is "1"
     unsigned bit_idx = 0;
     uint8_t delimiter_bit = bitrow_get_bit(bb[1], bit_idx++);
     if (delimiter_bit == 0)
-        return 0; // Decode error
+        return DECODE_ABORT_EARLY; // Decode error
 
     // Strip delimiter bits
     // row_in = 1, row_out = 2
@@ -85,7 +89,7 @@ static int lightwave_rf_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     for (unsigned n = 0; n < 10; ++n) { // We have 10 bytes
         delimiter_bit = bitrow_get_bit(bb[1], bit_idx++);
         if (delimiter_bit == 0)
-            return 0; // Decode error
+            return DECODE_ABORT_EARLY; // Decode error
 
         for (unsigned m = 0; m < 8; ++m) {
             bitbuffer_add_bit(bitbuffer, bitrow_get_bit(bb[1], bit_idx++));
@@ -103,7 +107,7 @@ static int lightwave_rf_callback(r_device *decoder, bitbuffer_t *bitbuffer)
                 fprintf(stderr, "LightwaveRF. Nibble decode error %X, idx: %u\n", bb[2][n], n);
                 bitbuffer_print(bitbuffer);
             }
-            return 0; // Decode error
+            return DECODE_FAIL_SANITY; // Decode error
         }
         for (unsigned m=0; m<4; ++m) { // Add nibble one bit at a time...
             bitbuffer_add_bit(bitbuffer, (nibble & (8 >> m)) >> (3-m));
@@ -135,21 +139,21 @@ static int lightwave_rf_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 }
 
 static char *output_fields[] = {
-    "model",
-    "id",
-    "subunit",
-    "command",
-    "parameter",
-    NULL
+        "model",
+        "id",
+        "subunit",
+        "command",
+        "parameter",
+        NULL,
 };
 
 r_device lightwave_rf = {
-    .name           = "LightwaveRF",
-    .modulation     = OOK_PULSE_PPM,
-    .short_width    = 250, // Short gap 250µs, long gap 1250µs, (Pulse width is 250µs)
-    .long_width     = 1250, //
-    .reset_limit    = 1500, // Gap between messages is unknown so let us get them individually
-    .decode_fn      = &lightwave_rf_callback,
-    .disabled       = 1,
-    .fields         = output_fields,
+        .name        = "LightwaveRF",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 250,  // Short gap 250µs, long gap 1250µs, (Pulse width is 250µs)
+        .long_width  = 1250, //
+        .reset_limit = 1500, // Gap between messages is unknown so let us get them individually
+        .decode_fn   = &lightwave_rf_callback,
+        .disabled    = 1,
+        .fields      = output_fields,
 };

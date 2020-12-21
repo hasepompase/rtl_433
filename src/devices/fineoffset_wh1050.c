@@ -3,8 +3,16 @@
 
     2016 Nicola Quiriti ('ovrheat')
     Modifications 2016 by Don More
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
  */
 /**
+Fine Offset WH1050 Weather Station.
+
 This module is a cut-down version of the WH1080 decoder.
 The WH1050 sensor unit is like the WH1080 unit except it has no
 wind direction sensor or time receiver.
@@ -33,7 +41,7 @@ static int fineoffset_wh1050_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     uint8_t br[9];
 
     if (bitbuffer->num_rows != 1) {
-        return 0;
+        return DECODE_ABORT_EARLY;
     }
 
     /* The normal preamble for WH1050 is 8 1s (0xFF) followed by 4 0s
@@ -53,19 +61,19 @@ static int fineoffset_wh1050_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     } else if (bits == 80 && preamble_byte == 0xff) {
         bitbuffer_extract_bytes(bitbuffer, 0, 8, br, 72);
     } else {
-        return 0;
+        return DECODE_ABORT_LENGTH;
     }
 
     // If you calculate the CRC over all 10 bytes including the preamble
     // byte (always 0xFF), then CRC_INIT is 0xFF. But we compare the preamble
     // byte and then discard it.
     if (crc8(br, 9, 0x31, 0x00)) {
-        return 0; // crc mismatch
+        return DECODE_FAIL_MIC; // crc mismatch
     }
 
     // GETTING WEATHER SENSORS DATA
     int temp_raw      = ((br[1] & 0x03) << 8) | br[2];
-    float temperature = (temp_raw - 400) * 0.1;
+    float temperature = (temp_raw - 400) * 0.1f;
     int humidity      = br[3];
     float speed       = (br[4] * 0.34f) * 3.6f; // m/s -> km/h
     float gust        = (br[5] * 0.34f) * 3.6f; // m/s -> km/h
@@ -104,6 +112,7 @@ static char *output_fields[] = {
     "wind_max_km_h",
     "rain", // TODO: delete this
     "rain_mm",
+    "mic",
     NULL,
 };
 

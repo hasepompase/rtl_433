@@ -11,7 +11,9 @@
 */
 /**
 Largely the same as esperanza_ews, kedsum.
-\sa esperanza_ews.c kedsum.c
+@sa esperanza_ews.c kedsum.c
+
+Also NC-5849-913 from Pearl (for FWS-310 station).
 
 Transmit Interval: every ~50s.
 Message Format: 40 bits (10 nibbles).
@@ -37,14 +39,14 @@ Example data:
 Temperature:
 - Sensor sends data in °F, lowest supported value is -90°F
 - 12 bit unsigned and scaled by 10 (Nibbles: 6,5,4)
-- in this case "011001100101" =  1637/10 - 90 = 73.7 °F (23.17 °C)
+- in this case `011001100101` =  1637/10 - 90 = 73.7 °F (23.17 °C)
 
 Humidity:
 - 8 bit unsigned (Nibbles 8,7)
-- in this case "00101110" = 46
+- in this case `00101110` = 46
 
 Channel number: (Bits 10,11) + 1
-- in this case "00" --> "00" +1 = Channel1
+- in this case `00` --> `00` +1 = Channel1
 
 Battery status: (Bit 33) (0 normal, 1 voltage is below ~2.7 V)
 - TX-Button: (Bit 32) (0 indicates regular transmission, 1 indicates requested by pushbutton)
@@ -55,32 +57,42 @@ Random Code / Device ID: (Nibble 1)
 
 #include "decoder.h"
 
-static int s3318p_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int s3318p_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     uint8_t b[5];
     data_t *data;
 
     // ignore if two leading sync pulses (Esperanza EWS)
     if (bitbuffer->bits_per_row[0] == 0 && bitbuffer->bits_per_row[1] == 0)
-        return 0;
+        return DECODE_ABORT_EARLY;
 
     // the signal should have 6 repeats with a sync pulse between
     // require at least 4 received repeats
     int r = bitbuffer_find_repeated_row(bitbuffer, 4, 42);
     if (r < 0 || bitbuffer->bits_per_row[r] != 42)
-        return 0;
+        return DECODE_ABORT_LENGTH;
 
     // remove the two leading 0-bits and align the data
     bitbuffer_extract_bytes(bitbuffer, r, 2, b, 40);
 
+    // No need to decode/extract values for simple test
+    // check id channel temperature humidity value not zero
+    if (!b[0] && !b[1] && !b[2] && !b[3]) {
+        if (decoder->verbose > 1) {
+            fprintf(stderr, "%s: DECODE_FAIL_SANITY data all 0x00\n", __func__);
+        }
+        return DECODE_FAIL_SANITY;
+    }
+
     // CRC-4 poly 0x3, init 0x0 over 32 bits then XOR the next 4 bits
     int crc = crc4(b, 4, 0x3, 0x0) ^ (b[4] >> 4);
     if (crc != (b[4] & 0xf))
-        return 0;
+        return DECODE_FAIL_MIC;
 
     int id          = b[0];
     int channel     = ((b[1] & 0x30) >> 4) + 1;
     int temp_raw    = ((b[2] & 0x0f) << 8) | (b[2] & 0xf0) | (b[1] & 0x0f);
-    float temp_f    = (temp_raw - 900) * 0.1;
+    float temp_f    = (temp_raw - 900) * 0.1f;
     int humidity    = ((b[3] & 0x0f) << 4) | ((b[3] & 0xf0) >> 4);
     int button      = b[4] >> 7;
     int battery_low = (b[4] & 0x40) >> 6;
@@ -111,11 +123,11 @@ static char *output_fields[] = {
     "temperature_F",
     "humidity",
     "mic",
-    NULL
+    NULL,
 };
 
 r_device s3318p = {
-    .name           = "Conrad S3318P Temperature & Humidity Sensor",
+    .name           = "Conrad S3318P, FreeTec NC-5849-913 temperature humidity sensor",
     .modulation     = OOK_PULSE_PPM,
     .short_width    = 1900,
     .long_width     = 3800,
@@ -123,5 +135,5 @@ r_device s3318p = {
     .reset_limit    = 9400,
     .decode_fn      = &s3318p_callback,
     .disabled       = 0,
-    .fields         = output_fields
+    .fields         = output_fields,
 };

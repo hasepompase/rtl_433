@@ -1,7 +1,15 @@
 /** @file
-    Fine Offset WH1080/WH3080 Weather Station
+    Fine Offset WH1080/WH3080 Weather Station.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
 */
-/** \fn int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+/** @fn int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+Fine Offset WH1080/WH3080 Weather Station.
+
 This module is based on Stanisław Pitucha ('viraptor' https://github.com/viraptor) code stub for the Digitech XC0348
 Weather Station, which seems to be a rebranded Fine Offset WH1080 Weather Station.
 
@@ -21,7 +29,7 @@ Data layout:
 
 - F: 4 bit fixed message format
 - I: 8 bit device id
-- T: 12 bit temperature, offset 40 scale 10, i.e. 0.1C steps -40C
+- T: 12 bit temperature, offset 40 scale 10, i.e. 0.1C steps -40C (top 2 bits are sign, discard)
 - H: 8 bit humidity percent
 - S: 8 bit wind speed, 0.34m/s steps
 - G: 8 bit gust speed, 0.34m/s steps
@@ -109,7 +117,10 @@ static int wind_dir_degr[]= {0, 23, 45, 68, 90, 113, 135, 158, 180, 203, 225, 24
 #define EPB 8
 #define SPB 7
 
-static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+#define TYPE_OOK 1
+#define TYPE_FSK 2
+
+static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer, int type)
 {
     data_t *data;
     uint8_t *br;
@@ -117,12 +128,26 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int sens_msg = 10; // 10=Weather/Time sensor  7=UV/Light sensor
     uint8_t bbuf[11];  // max 8 / 11 bytes needed
     int preamble;         // 7 or 8 preamble bits
+    int temp_raw;
+    float temperature;
+    uint8_t const fsk_preamble[] = {0xAA, 0x2D, 0xD4};
 
     if (bitbuffer->num_rows != 1) {
-        return 0;
+        return DECODE_ABORT_EARLY;
     }
 
-    if (bitbuffer->bits_per_row[0] == 88) { // FineOffset WH1080/3080 Weather data msg
+    if (type == TYPE_FSK) {
+        int bit_offset = bitbuffer_search(bitbuffer, 0, 0, fsk_preamble, sizeof(fsk_preamble) * 8) + sizeof(fsk_preamble) * 8;
+        if (bit_offset + sizeof(bbuf) * 8 > bitbuffer->bits_per_row[0]) {  // Did not find a big enough package
+            if (decoder->verbose)
+                bitbuffer_printf(bitbuffer, "fineoffset_wh1080: short package. Header index: %u\n", bit_offset);
+            return DECODE_ABORT_LENGTH;
+        }
+        bitbuffer_extract_bytes(bitbuffer, 0, bit_offset-8, bbuf, sizeof(bbuf) * 8);
+        br = bbuf;
+        br[0] = 0xFF; // Emulate OOK payload
+        preamble = EPB;
+    } else if (bitbuffer->bits_per_row[0] == 88) { // FineOffset WH1080/3080 Weather data msg
         preamble = EPB;
         sens_msg = 10;
         br = bitbuffer->bb[0];
@@ -150,7 +175,7 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         br      = bbuf;
     }
     else {
-        return 0;
+        return DECODE_ABORT_LENGTH;
     }
 
     if (decoder->verbose) {
@@ -158,17 +183,17 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     }
 
     if (br[0] != 0xff) {
-        return 0; // preamble missing
+        return DECODE_FAIL_SANITY; // preamble missing
     }
 
     if (sens_msg == 10) {
         if (crc8(br, 11, 0x31, 0xff)) { // init is 0 if we skip the preamble
-            return 0; // crc mismatch
+            return DECODE_FAIL_MIC; // crc mismatch
         }
     }
     else {
         if (crc8(br, 8, 0x31, 0xff)) { // init is 0 if we skip the preamble
-            return 0; // crc mismatch
+            return DECODE_FAIL_MIC; // crc mismatch
         }
     }
 
@@ -184,12 +209,21 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     else {
         // 0x03 is WH0530, Alecto WS-1200
         // 0x05 is Alecto WS-1200 DCF77
-        return 0;
+        return DECODE_FAIL_SANITY;
     }
 
     // GETTING WEATHER SENSORS DATA
-    int temp_raw      = ((br[2] & 0x0f) << 8) | br[3];
-    float temperature = (temp_raw - 400) * 0.1;
+    if (type == TYPE_OOK) {
+        temp_raw      = ((br[2] & 0x03) << 8) | br[3]; // only 10 bits, discard top bits
+        temperature  = (temp_raw - 400) * 0.1f;
+    } else {
+        temp_raw      = ((br[2] & 0x0F) << 8) | br[3];
+        if (temp_raw & 0x800) {
+            temp_raw &= 0x7FF; // remove sign bit
+            temp_raw = -temp_raw; // reverse magnitude
+        }
+        temperature = (temp_raw) * 0.1f;
+    }
     int humidity      = br[4];
     int direction_deg = wind_dir_degr[br[9] & 0x0f];
     float speed       = (br[5] * 0.34f) * 3.6f; // m/s -> km/h
@@ -205,13 +239,13 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int uv_index     = br[2] & 0x0F;
 
     // GETTING LIGHT DATA
-    float light = (br[4] << 16) | (br[5] << 8) | br[6];
-    float lux   = light * 0.1;
+    int light = (br[4] << 16) | (br[5] << 8) | br[6];
+    double lux = light * 0.1;
     float wm;
     if (preamble == SPB)
         wm = (light * 0.00079);
     else //EPB
-        wm = (light / 6830);
+        wm = (light / 6830.0);
 
     // GETTING TIME DATA
     int signal_type       = ((br[2] & 0x0F) == 10);
@@ -234,7 +268,7 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
                 "battery",          "Battery",          DATA_STRING,    battery_low ? "LOW" : "OK",
                 "temperature_C",    "Temperature",      DATA_FORMAT,    "%.01f C",  DATA_DOUBLE,    temperature,
                 "humidity",         "Humidity",         DATA_FORMAT,    "%u %%",    DATA_INT,       humidity,
-                "direction_deg",    "Wind degrees",     DATA_INT,       direction_deg,
+                _X("wind_dir_deg","direction_deg"),     "Wind Direction",    DATA_INT, direction_deg,
                 _X("wind_avg_km_h","speed"),   "Wind avg speed",   DATA_FORMAT,    "%.02f",    DATA_DOUBLE,    speed,
                 _X("wind_max_km_h","gust"),   "Wind gust",        DATA_FORMAT,    "%.02f",    DATA_DOUBLE,    gust,
                 _X("rain_mm","rain"),             "Total rainfall",   DATA_FORMAT,    "%3.1f",    DATA_DOUBLE,    rain,
@@ -276,6 +310,24 @@ static int fineoffset_wh1080_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     return 1;
 }
 
+/**
+Fine Offset WH1080/WH3080 Weather Station.
+@sa fineoffset_wh1080_callback()
+*/
+static int fineoffset_wh1080_callback_ook(r_device *decoder, bitbuffer_t *bitbuffer)
+{
+    return fineoffset_wh1080_callback(decoder, bitbuffer, TYPE_OOK);
+}
+
+/**
+Fine Offset WH1080/WH3080 Weather Station.
+@sa fineoffset_wh1080_callback()
+*/
+static int fineoffset_wh1080_callback_fsk(r_device *decoder, bitbuffer_t *bitbuffer)
+{
+    return fineoffset_wh1080_callback(decoder, bitbuffer, TYPE_FSK);
+}
+
 static char *output_fields[] = {
         "model",
         "subtype",
@@ -283,7 +335,8 @@ static char *output_fields[] = {
         "battery",
         "temperature_C",
         "humidity",
-        "direction_deg",
+        "direction_deg", // TODO: remove this
+        "wind_dir_deg",
         "speed", // TODO: remove this
         "gust",  // TODO: remove this
         "wind_avg_km_h",
@@ -294,10 +347,12 @@ static char *output_fields[] = {
         "signal",
         "radio_clock",
         "sensor_code",
+        "uv_sensor_id",
         "uv_status",
         "uv_index",
         "lux",
         "wm",
+        "mic",
         NULL,
 };
 
@@ -307,7 +362,18 @@ r_device fineoffset_wh1080 = {
         .short_width = 544,  // Short pulse 544µs, long pulse 1524µs, fixed gap 1036µs
         .long_width  = 1524, // Maximum pulse period (long pulse + fixed gap)
         .reset_limit = 2800, // We just want 1 package
-        .decode_fn   = &fineoffset_wh1080_callback,
+        .decode_fn   = &fineoffset_wh1080_callback_ook,
+        .disabled    = 0,
+        .fields      = output_fields,
+};
+
+r_device fineoffset_wh1080_fsk = {
+        .name        = "Fine Offset Electronics WH1080/WH3080 Weather Station (FSK)",
+        .modulation  = FSK_PULSE_PCM,
+        .short_width = 58,
+        .long_width  = 58,
+        .reset_limit = 5800,
+        .decode_fn   = &fineoffset_wh1080_callback_fsk,
         .disabled    = 0,
         .fields      = output_fields,
 };

@@ -1,8 +1,9 @@
 # rtl_433
 
-rtl_433 (despite the name) is a generic data receiver, mainly for the 433.92 MHz, 868 MHz (SRD), 315 MHz, and 915 MHz ISM bands.
+rtl_433 (despite the name) is a generic data receiver, mainly for the 433.92 MHz, 868 MHz (SRD), 315 MHz, 345 MHz, and 915 MHz ISM bands.
 
 The official source code is in the https://github.com/merbanan/rtl_433/ repository.
+For more documentation and related projects see the https://triq.org/ site.
 
 It works with [RTL-SDR](https://github.com/osmocom/rtl-sdr/) and/or [SoapySDR](https://github.com/pothosware/SoapySDR/).
 Actively tested and supported are Realtek RTL2832 based DVB dongles (using RTL-SDR) and LimeSDR ([LimeSDR USB](https://www.crowdsupply.com/lime-micro/limesdr) and [LimeSDR mini](https://www.crowdsupply.com/lime-micro/limesdr-mini) engineering samples kindly provided by [MyriadRf](https://myriadrf.org/)), PlutoSDR, HackRF One (using SoapySDR drivers), as well as SoapyRemote.
@@ -24,7 +25,7 @@ On Debian (sid) or Ubuntu (19.10+), `apt-get install rtl-433` for other distros 
 
 ## How to add support for unsupported sensors
 
-Read the Test Data section at the bottom.
+See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
 
 ## Running
 
@@ -51,9 +52,7 @@ Read the Test Data section at the bottom.
        Specify a negative number to disable a device decoding protocol (can be used multiple times)
   [-G] Enable blacklisted device decoding protocols, for testing only.
   [-X <spec> | help] Add a general purpose decoder (prepend -R 0 to disable all decoders)
-  [-l <level>] Change detection level used to determine pulses (0-16384) (0=auto) (default: 0)
-  [-z <value>] Override short value in data decoder
-  [-x <value>] Override long value in data decoder
+  [-Y level=<dB level>] Manual detection level used to determine pulses (-1.0 to -30.0) (0=auto)
   [-n <value>] Specify number of samples to take (each sample is 2 bytes: 1 each of I & Q)
   [-Y auto | classic | minmax] FSK pulse detector mode.
 		= Analyze/Debug options =
@@ -72,7 +71,7 @@ Read the Test Data section at the bottom.
        Append output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.
        Specify host/port for syslog with e.g. -F syslog:127.0.0.1:1514
   [-M time[:<options>] | protocol | level | stats | bits | help] Add various meta data to each output.
-  [-K FILE | PATH | <tag>] Add an expanded token or fixed tag to every output line.
+  [-K FILE | PATH | <tag> | <key>=<value>] Add an expanded token or fixed tag to every output line.
   [-C native | si | customary] Convert units in decoded output.
   [-T <seconds>] Specify number of seconds to run, also 12:34 or 1h23m45s
   [-E hop | quit] Hop/Quit after outputting successful event(s)
@@ -84,7 +83,7 @@ Read the Test Data section at the bottom.
 		= Supported device protocols =
     [01]  Silvercrest Remote Control
     [02]  Rubicson Temperature Sensor
-    [03]  Prologue Temperature Sensor
+    [03]  Prologue, FreeTec NC-7104, NC-7159-675 temperature sensor
     [04]  Waveman Switch Transmitter
     [06]* ELV EM 1000
     [07]* ELV WS 2000
@@ -98,7 +97,7 @@ Read the Test Data section at the bottom.
     [16]  AlectoV1 Weather Sensor (Alecto WS3500 WS4500 Ventus W155/W044 Oregon)
     [17]  Cardin S466-TX2
     [18]  Fine Offset Electronics, WH2, WH5, Telldus Temperature/Humidity/Rain Sensor
-    [19]  Nexus Temperature & Humidity Sensor
+    [19]  Nexus, FreeTec NC-7345, NX-3980, Solight TE82S, TFA 30.3209 temperature/humidity sensor
     [20]  Ambient Weather Temperature Sensor
     [21]  Calibeur RF-104 Sensor
     [22]* X10 RF
@@ -117,14 +116,14 @@ Read the Test Data section at the bottom.
     [37]* Inovalley kw9015b, TFA Dostmann 30.3161 (Rain and temperature sensor)
     [38]  Generic temperature sensor 1
     [39]  WG-PB12V1 Temperature Sensor
-    [40]  Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning
+    [40]  Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning, 3N1, Atlas
     [41]  Acurite 986 Refrigerator / Freezer Thermometer
     [42]  HIDEKI TS04 Temperature, Humidity, Wind and Rain Sensor
     [43]  Watchman Sonic / Apollo Ultrasonic / Beckett Rocket oil tank monitor
     [44]  CurrentCost Current Sensor
     [45]  emonTx OpenEnergyMonitor
     [46]  HT680 Remote control
-    [47]  Conrad S3318P Temperature & Humidity Sensor
+    [47]  Conrad S3318P, FreeTec NC-5849-913 temperature humidity sensor
     [48]  Akhan 100F14 remote keyless entry
     [49]  Quhwa
     [50]  OSv1 Temperature Sensor
@@ -145,13 +144,13 @@ Read the Test Data section at the bottom.
     [67]  Radiohead ASK
     [68]  Kerui PIR / Contact Sensor
     [69]  Fine Offset WH1050 Weather Station
-    [70]  Honeywell Door/Window Sensor
+    [70]  Honeywell Door/Window Sensor, 2Gig DW10/DW11, RE208 repeater
     [71]  Maverick ET-732/733 BBQ Sensor
     [72]* RF-tech
-    [73]  LaCrosse TX141-Bv2, TX141TH-Bv2, TX141-Bv3 sensor
+    [73]  LaCrosse TX141-Bv2, TX141TH-Bv2, TX141-Bv3, TX141W, TX145wsdth sensor
     [74]  Acurite 00275rm,00276rm Temp/Humidity with optional probe
     [75]  LaCrosse TX35DTH-IT, TFA Dostmann 30.3155 Temperature/Humidity sensor
-    [76]  LaCrosse TX29IT Temperature sensor
+    [76]  LaCrosse TX29IT, TFA Dostmann 30.3159.IT Temperature sensor
     [77]  Vaillant calorMatic VRT340f Central Heating Control
     [78]  Fine Offset Electronics, WH25, WH32B, WH24, WH65B, HP1000 Temperature/Humidity/Pressure Sensor
     [79]  Fine Offset Electronics, WH0530 Temperature/Rain Sensor
@@ -160,13 +159,13 @@ Read the Test Data section at the bottom.
     [82]  Citroen TPMS
     [83]  Oil Ultrasonic STANDARD ASK
     [84]  Thermopro TP11 Thermometer
-    [85]  Solight TE44
+    [85]  Solight TE44/TE66, EMOS E0107T, NX-6876-917
     [86]  Wireless Smoke and Heat Detector GS 558
     [87]  Generic wireless motion sensor
     [88]  Toyota TPMS
     [89]  Ford TPMS
     [90]  Renault TPMS
-    [91]  inFactory
+    [91]  inFactory, nor-tec, FreeTec NC-3982-913 temperature humidity sensor
     [92]  FT-004-B Temperature Sensor
     [93]  Ford Car Key
     [94]  Philips outdoor temperature sensor (type AJ3650)
@@ -180,7 +179,7 @@ Read the Test Data section at the bottom.
     [102]  SimpliSafe Home Security System (May require disabling automatic gain for KeyPad decodes)
     [103]  Sensible Living Mini-Plant Moisture Sensor
     [104]  Wireless M-Bus, Mode C&T, 100kbps (-f 868950000 -s 1200000)
-    [105]* Wireless M-Bus, Mode S, 32.768kbps (-f 868300000 -s 1000000)
+    [105]  Wireless M-Bus, Mode S, 32.768kbps (-f 868300000 -s 1000000)
     [106]* Wireless M-Bus, Mode R, 4.8kbps (-f 868330000)
     [107]* Wireless M-Bus, Mode F, 2.4kbps
     [108]  Hyundai WS SENZOR Remote Temperature Sensor
@@ -188,7 +187,7 @@ Read the Test Data section at the bottom.
     [110]  PMV-107J (Toyota) TPMS
     [111]  Emos TTX201 Temperature Sensor
     [112]  Ambient Weather TX-8300 Temperature/Humidity Sensor
-    [113]  Ambient Weather WH31E Thermo-Hygrometer Sensor
+    [113]  Ambient Weather WH31E Thermo-Hygrometer Sensor, EcoWitt WH40 rain gauge
     [114]  Maverick et73
     [115]  Honeywell ActivLink, Wireless Doorbell
     [116]  Honeywell ActivLink, Wireless Doorbell (FSK)
@@ -205,18 +204,52 @@ Read the Test Data section at the bottom.
     [127]  Ecowitt Wireless Outdoor Thermometer WH53/WH0280/WH0281A
     [128]  DirecTV RC66RX Remote Control
     [129]* Eurochron temperature and humidity sensor
-    [130]* IKEA Sparsnäs Energy Meter Monitor
+    [130]  IKEA Sparsnas Energy Meter Monitor
     [131]  Microchip HCS200 KeeLoq Hopping Encoder based remotes
     [132]  TFA Dostmann 30.3196 T/H outdoor sensor
     [133]  Rubicson 48659 Thermometer
-    [134]  Holman Industries WS5029 weather station
+    [134]  Holman Industries iWeather WS5029 weather station (newer PCM)
     [135]  Philips outdoor temperature sensor (type AJ7010)
     [136]  ESIC EMT7110 power meter
     [137]  Globaltronics QUIGG GT-TMBBQ-05
     [138]  Globaltronics GT-WT-03 Sensor
     [139]  Norgo NGE101
     [140]  Elantra2012 TPMS
-    [141]  Auriol HG02832 temperature/humidity sensor
+    [141]  Auriol HG02832, HG05124A-DCF, Rubicson 48957 temperature/humidity sensor
+    [142]  Fine Offset Electronics/ECOWITT WH51 Soil Moisture Sensor
+    [143]  Holman Industries iWeather WS5029 weather station (older PWM)
+    [144]  TBH weather sensor
+    [145]  WS2032 weather station
+    [146]  Auriol AFW2A1 temperature/humidity sensor
+    [147]  TFA Drop Rain Gauge 30.3233.01
+    [148]  DSC Security Contact (WS4945)
+    [149]  ERT Standard Consumption Message (SCM)
+    [150]* Klimalogg
+    [151]  Visonic powercode
+    [152]  Eurochron EFTH-800 temperature and humidity sensor
+    [153]  Cotech 36-7959 wireless weather station with USB
+    [154]  Standard Consumption Message Plus (SCMplus)
+    [155]  Fine Offset Electronics WH1080/WH3080 Weather Station (FSK)
+    [156]  Abarth 124 Spider TPMS
+    [157]  Missil ML0757 weather station
+    [158]  Sharp SPC775 weather station
+    [159]  Insteon
+    [160]  ERT Interval Data Message (IDM)
+    [161]  ERT Interval Data Message (IDM) for Net Meters
+    [162]* ThermoPro-TX2 temperature sensor
+    [163]  Acurite 590TX Temperature with optional Humidity
+    [164]  Security+ 2.0 (Keyfob)
+    [165]  TFA Dostmann 30.3221.02 T/H Outdoor Sensor
+    [166]  LaCrosse Technology View LTV-WSDTH01 Breeze Pro Wind Sensor
+    [167]  Somfy RTS
+    [168]  Schrader TPMS SMD3MA4 (Subaru)
+    [169]* Nice Flor-s remote control for gates
+    [170]  LaCrosse Technology View LTV-WR1 Multi Sensor
+    [171]  LaCrosse Technology View LTV-TH Thermo/Hygro Sensor
+    [172]  Bresser Weather Center 6-in-1
+    [173]  Bresser Weather Center 7-in-1
+    [174]  EcoDHOME Smart Socket and MCEE Solar monitor
+    [175]  LaCrosse Technology View LTV-R1 Rainfall Gauge
 
 * Disabled by default, use -R n or -G
 
@@ -311,6 +344,8 @@ E.g. -X "n=doorbell,m=OOK_PWM,s=400,l=800,r=7000,g=1000,match={24}0xa9878c,repea
 	  devices: posts device and sensor info in nested topics
 	The topic string will expand keys like [/model]
 	E.g. -F "mqtt://localhost:1883,user=USERNAME,pass=PASSWORD,retain=0,devices=rtl_433[/id]"
+	With MQTT each rtl_433 instance needs a distinct driver selection. The MQTT Client-ID is computed from the driver string.
+	If you use multiple RTL-SDR, perhaps set a serial and select by that (helps not to get the wrong antenna).
 	Specify InfluxDB 2.0 server with e.g. -F "influx://localhost:9999/api/v2/write?org=<org>&bucket=<bucket>,token=<authtoken>"
 	Specify InfluxDB 1.x server with e.g. -F "influx://localhost:8086/write?db=<db>&p=<password>&u=<user>"
 	  Additional parameter -M time:unix:usec:utc for correct timestamps in InfluxDB recommended
@@ -318,13 +353,14 @@ E.g. -X "n=doorbell,m=OOK_PWM,s=400,l=800,r=7000,g=1000,match={24}0xa9878c,repea
 
 
 		= Meta information option =
-  [-M time[:<options>]|protocol|level|stats|bits|newmodel] Add various metadata to every output line.
+  [-M time[:<options>]|protocol|level|stats|bits|oldmodel] Add various metadata to every output line.
 	Use "time" to add current date and time meta data (preset for live inputs).
 	Use "time:rel" to add sample position meta data (preset for read-file and stdin).
 	Use "time:unix" to show the seconds since unix epoch as time meta data.
 	Use "time:iso" to show the time with ISO-8601 format (YYYY-MM-DD"T"hh:mm:ss).
 	Use "time:off" to remove time meta data.
 	Use "time:usec" to add microseconds to date time meta data.
+	Use "time:tz" to output time with timezone offset.
 	Use "time:utc" to output time in UTC.
 		(this may also be accomplished by invocation with TZ environment variable set).
 		"usec" and "utc" can be combined with other options, eg. "time:unix:utc:usec".
@@ -333,10 +369,7 @@ E.g. -X "n=doorbell,m=OOK_PWM,s=400,l=800,r=7000,g=1000,match={24}0xa9878c,repea
 	Use "stats[:[<level>][:<interval>]]" to report statistics (default: 600 seconds).
 	  level 0: no report, 1: report successful devices, 2: report active devices, 3: report all
 	Use "bits" to add bit representation to code outputs (for debug).
-
-Note:	Use "newmodel" to transition to new model keys. This will become the default someday.
-	A table of changes and discussion is at https://github.com/merbanan/rtl_433/pull/986.
-
+	Note: You can use "oldmodel" to get the old model keys. This will be removed shortly.
 
 
 		= Read file option =
@@ -357,6 +390,9 @@ Note:	Use "newmodel" to transition to new model keys. This will become the defau
 
 	E.g. default detection by extension: path/filename.am.s16
 	forced overrides: am:s16:path/filename.ext
+
+	Reading from pipes also support format options.
+	E.g reading complex 32-bit float: CU32:-
 
 
 		= Write file option =
@@ -390,45 +426,8 @@ Some examples:
 | `rtl_433 -A` | Enable pulse analyzer. Summarizes the timings of pulses, gaps, and periods. Can be used with `-R 0` to disable decoders.
 | `rtl_433 -S all -T 120` | Save all detected signals (`g###_###M_###k.cu8`). Run for 2 minutes.
 | `rtl_433 -K FILE -r file_name` | Read a saved data file instead of receiving live data. Tag output with filenames.
-| `rtl_433 -F json -M utc \| mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `tests/mqtt_rtl_433_test.py`.
+| `rtl_433 -F json -M utc \| mosquitto_pub -t home/rtl_433 -l` | Will pipe the output to network as JSON formatted MQTT messages. A test MQTT client can be found in `examples/mqtt_rtl_433_test_client.py`.
 | `rtl_433 -f 433.53M -f 434.02M -H 15` | Will poll two frequencies with 15 seconds hop interval.
-
-
-## Supporting Additional Devices and Test Data
-
-Some device protocol decoders are disabled by default. When testing to see if your device
-is decoded by rtl_433, use `-G` to enable all device protocols.
-This will likely produce false positives, use with caution.
-
-The first step in decoding new devices is to record the signals using `-S all`.
-The signals will be stored individually in files named g**NNN**\_**FFF**M\_**RRR**k.cu8 :
-
-| Parameter | Description
-|---------|------------
-| **NNN** | signal grabbed number
-| **FFF** | frequency
-| **RRR** | sample rate   
-
-This file can be played back with `rtl_433 -r gNNN_FFFM_RRRk.cu8`.
-
-These files are vital for understanding the signal format as well as the message data.  Use both analyzers
-`-a` and `-A` to look at the recorded signal and determine the pulse characteristics, e.g. `rtl_433 -r gNNN_FFFM_RRRk.cu8 -a -A`.
-
-Make sure you have recorded a proper set of test signals representing different conditions together
-with any and all information about the values that the signal should represent. For example, make a
-note of what temperature and/or humidity is the signal encoding. Ideally, capture a range of data
-values, such a different temperatures, to make it easy to spot what part of the message is changing.
-
-Add the data files, a text file describing the captured signals, pictures of the device and/or
-a link the manufacturer's page (ideally with specifications) to the rtl_433_tests
-github repository. Follow the existing structure as best as possible and send a pull request.
-
-https://github.com/merbanan/rtl_433_tests
-
-Please don't open a new github issue for device support or request decoding help from others
-until you've added test signals and the description to the repository.
-
-The rtl_433_test repository is also used to help test that changes to rtl_433 haven't caused any regressions.
 
 ## Google Group
 
@@ -447,3 +446,8 @@ If you see this error:
 then
 
     sudo rmmod dvb_usb_rtl28xxu rtl2832
+
+
+## Releases
+
+Version numbering scheme used is year.month. We try to keep the API compatible between releases but focus is on maintainablity.

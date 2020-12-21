@@ -1,3 +1,13 @@
+/** @file
+    ELV WS 2000.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+*/
+
+
 #include "decoder.h"
 
 static uint16_t AD_POP(uint8_t *bb, uint8_t bits, uint8_t bit)
@@ -21,7 +31,7 @@ static int em1000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     uint8_t bytes=0;
     uint8_t bit=18; // preamble
     uint8_t bb_p[14];
-    char* types[] = {"EM 1000-S", "EM 1000-?", "EM 1000-GZ"};
+    //char* types[] = {"EM 1000-S", "EM 1000-?", "EM 1000-GZ"};
     uint8_t checksum_calculated = 0;
     uint8_t i;
     uint8_t stopbit;
@@ -34,7 +44,7 @@ static int em1000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         else if (bb[1][i] == bb[2][i])
             bb_p[i] = bb[1][i];
         else
-            return 0;
+            return DECODE_ABORT_EARLY;
     }
 
     // read 9 bytes with stopbit ...
@@ -45,7 +55,7 @@ static int em1000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         bit += 1;
         if (!stopbit) {
 //            fprintf(stderr, "!stopbit: %i\n", i);
-            return 0;
+            return DECODE_ABORT_EARLY;
         }
         checksum_calculated ^= dec[i];
         bytes++;
@@ -55,13 +65,13 @@ static int em1000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     checksum_received = AD_POP (bb_p, 8, bit); bit+=8;
     if (checksum_received != checksum_calculated) {
 //        fprintf(stderr, "checksum_received != checksum_calculated: %d %d\n", checksum_received, checksum_calculated);
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
 //for (i = 0; i < bytes; i++) fprintf(stderr, "%02X ", dec[i]); fprintf(stderr, "\n");
 
     // based on 15_CUL_EM.pm
-    char *subtype = dec[0] >= 1 && dec[0] <= 3 ? types[dec[0] - 1] : "?";
+    //char *subtype = dec[0] >= 1 && dec[0] <= 3 ? types[dec[0] - 1] : "?";
     int code      = dec[1];
     int seqno     = dec[2];
     int total     = dec[3] | dec[4] << 8;
@@ -125,7 +135,7 @@ static int ws2000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     if (!stopbit) {
         if (decoder->verbose)
             fprintf(stderr, "!stopbit\n");
-        return 0;
+        return DECODE_ABORT_EARLY;
     }
     check_calculated ^= dec[0];
     sum_calculated   += dec[0];
@@ -137,7 +147,7 @@ static int ws2000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         if (!stopbit) {
             if (decoder->verbose)
                 fprintf(stderr, "!stopbit %i\n", bit);
-            return 0;
+            return DECODE_ABORT_EARLY;
         }
         check_calculated ^= dec[i];
         sum_calculated   += dec[i];
@@ -150,7 +160,7 @@ static int ws2000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     if (check_calculated) {
         if (decoder->verbose)
             fprintf(stderr, "check_calculated (%d) != 0\n", check_calculated);
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
     // Read sum
@@ -160,13 +170,13 @@ static int ws2000_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     if (sum_received != sum_calculated) {
         if (decoder->verbose)
             fprintf(stderr, "sum_received (%d) != sum_calculated (%d) ", sum_received, sum_calculated);
-        return 0;
+        return DECODE_FAIL_MIC;
     }
 
     char *subtype  = (dec[0] <= 7) ? types[dec[0]] : "?";
     int code       = dec[1] & 7;
-    float temp     = ((dec[1] & 8) ? -1.0 : 1.0) * (dec[4] * 10 + dec[3] + dec[2] * 0.1);
-    float humidity = dec[7] * 10 + dec[6] + dec[5] * 0.1;
+    float temp     = ((dec[1] & 8) ? -1.0f : 1.0f) * (dec[4] * 10 + dec[3] + dec[2] * 0.1f);
+    float humidity = dec[7] * 10 + dec[6] + dec[5] * 0.1f;
     int pressure   = 0;
     if (dec[0]==4) {
         pressure = 200 + dec[10] * 100 + dec[9] * 10 + dec[8];
